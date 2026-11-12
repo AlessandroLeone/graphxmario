@@ -126,13 +126,14 @@ export function creaClientMario({ marioOrigin, originiConsentite }) {
       throw new Error('Conferma Mario inattesa: non chiudere il lavoro.');
     }
     notifica('GRAFXDICO_DONE');
-    // Il chiamante mostra prima: «Ricevuto da Mario, conferma l'applicazione in Mario».
+    // Per un nuovo invio richiamare prepara(); per un retry riusare lo stesso pacchetto.
+    // Il flusso normale lascia la finestra aperta per altre esportazioni.
     if (chiudiDopoInvio) window.close();
     return ack;
   }
   async function annulla({ chiudiDopoAnnulla = false } = {}) {
     const ack = await api('cancel', { method: 'POST' });
-    if (ack.status !== 'discarded' || ack.session_id !== sessionId) throw new Error('Annullamento non confermato.');
+    if (!['discarded','closed'].includes(ack.status) || ack.session_id !== sessionId) throw new Error('Annullamento non confermato.');
     notifica('GRAFXDICO_CANCELLED');
     if (chiudiDopoAnnulla) window.close();
     return ack;

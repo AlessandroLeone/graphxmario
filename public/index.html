@@ -5,26 +5,26 @@
 <meta name="referrer" content="no-referrer"><meta name="robots" content="noindex,nofollow">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
 <title>Mario demo · Collegamento GraphXDico</title>
-<link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/styles.css?v=2"><script type="module" src="/app.js?v=2"></script>
+<link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/styles.css?v=3"><script type="module" src="/app.js?v=3"></script>
 </head>
 <body>
 <header><a class="brand" href="/">Mario <span>demo</span></a><span class="header-note">Ricevitore GraphXDico</span></header>
 <main>
-<section class="intro"><h1>Dal disegno al documento.</h1><p>Apri GraphXDico, prepara lo schema ed esportalo. Qui compariranno l’immagine e le tabelle ricevute.</p></section>
+<section class="intro"><h1>Dal disegno al documento.</h1><p>Apri GraphXDico e lavora sullo schema. Ogni invio aggiunge un’immagine con le sue tabelle; puoi continuare dalla stessa finestra.</p></section>
 <section class="connection" aria-label="Collegamento">
 <div class="editor-field"><label class="field-label" for="editor-url">Indirizzo di GraphXDico</label><input id="editor-url" type="url" required maxlength="2048" placeholder="https://graphxdico.it/editor" autocomplete="url" spellcheck="false" aria-describedby="editor-help"><p id="editor-help" class="muted">Incolla l’URL completo dell’editor. Verrà ricordato in questo browser e usato per la prossima prova.</p></div>
 <button id="open" disabled>Apri GraphXDico</button>
 </section>
 <div class="status" id="status" role="status" aria-live="polite">Preparazione del collegamento…</div>
-<p id="session-note" class="muted">Questa pagina simula Mario. Usa solo dati dimostrativi: le sessioni scadono dopo 30 minuti.</p>
+<p id="session-note" class="muted">Questa pagina simula Mario. Usa solo dati dimostrativi: la sessione resta attiva mentre questa pagina rimane in ascolto; scade dopo 30 minuti di inattività.</p>
 <section id="received" hidden aria-label="Risultato ricevuto">
-<div class="result-heading"><h2>Risultato ricevuto</h2><button id="download" class="secondary">Scarica JSON</button></div>
+<div class="result-heading"><h2>Invii ricevuti</h2><button id="download" class="secondary">Scarica JSON</button></div>
 <p class="muted">Immagine e dati arrivati da GraphXDico. Questa demo non modifica documenti nel Mario originale.</p>
-<div class="results"><section><h3>Disegno</h3><div id="images"></div></section><section><h3>Tabelle</h3><div id="tables"></div></section></div>
+<div id="deliveries"></div>
 </section>
 <section id="rejected" class="rejection" hidden><h2>Formato da verificare</h2><p id="rejection-message"></p><p>Il risultato non è stato accettato. Puoi leggere il JSON qui sotto e concordare la correzione.</p></section>
 <details id="json-panel" hidden><summary>Mostra il JSON ricevuto</summary><pre id="json"></pre></details>
 <details id="request-panel" hidden><summary>Mostra la richiesta inviata a GraphXDico</summary><pre id="request"></pre></details>
-<footer>La finestra di GraphXDico si chiude dopo l’invio riuscito. Chiuderla con la X non esporta i dati.</footer>
+<footer>GraphXDico resta aperto dopo ogni invio. Chiudilo quando hai finito: gli invii già ricevuti restano visibili. La X non esporta il lavoro non ancora inviato.</footer>
 </main>
 </body></html>

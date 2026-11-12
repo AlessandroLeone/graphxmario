@@ -6,14 +6,16 @@
     "document_revision": "revisione_opaca_ricevuta_da_mario",
     "expires_at": "2026-11-12T15:30:00+00:00",
     "limits": {
-        "max_images": 20,
+        "max_images": 1,
         "image_bytes": 10485760,
         "image_megapixels": 25,
         "max_rows": 5000,
         "media_types": [
             "image/png",
             "image/jpeg"
-        ]
+        ],
+        "max_deliveries": 100,
+        "session_bytes": 67108864
     },
     "group": {
         "group_id": "grp_esempio0000000000",
@@ -198,5 +200,6 @@
             ],
             "required": true
         }
-    ]
+    ],
+    "delivery_mode": "append"
 }

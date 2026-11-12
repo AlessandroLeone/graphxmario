@@ -73,6 +73,8 @@ with tempfile.TemporaryDirectory(prefix='receiver-', dir=ROOT/'.runtime') as dat
         check(call(path+'/result','OPTIONS',origin=EDITOR)[0]==204,'preflight')
         m,f=payload(s); partial={**m,'targets':m['targets'][:1]}
         check(call(path+'/result','POST',t,EDITOR,partial,f)[1]['error']['code']=='result_incomplete','partial rejected')
+        multiple=json.loads(json.dumps(m));multiple['targets'][0]['asset_ids'].append('drawing-2')
+        check(call(path+'/result','POST',t,EDITOR,multiple,f)[1]['error']['code']=='asset_required','one image per export enforced')
         malformed=json.loads(json.dumps(m));malformed['targets'][1]['rows'][0]['extra_column']='extra'
         check(call(path+'/result','POST',t,EDITOR,malformed,f)[1]['error']['code']=='column_unknown','extra column rejected')
         code,state,_=call('/demo/sessions/'+s['session_id']+'/status',token=s['viewer_token'])
@@ -82,14 +84,21 @@ with tempfile.TemporaryDirectory(prefix='receiver-', dir=ROOT/'.runtime') as dat
         check(code==201 and ack['status']=='staged','PNG accepted')
         check(call(path+'/result','POST',t,EDITOR,m,f)[1]['replayed'] is True,'identical retry')
         changed={**m,'result_id':'changed-'+uuid.uuid4().hex}
-        check(call(path+'/result','POST',t,EDITOR,changed,f)[0]==409,'different retry refused')
+        check(call(path+'/result','POST',t,EDITOR,changed,f)[0]==201,'second distinct export accepted')
+        conflicting={**m,'targets':json.loads(json.dumps(m['targets']))};conflicting['targets'][1]['rows'][0][next(iter(conflicting['targets'][1]['rows'][0]))]='changed'
+        check(call(path+'/result','POST',t,EDITOR,conflicting,f)[0]==409,'same result ID changed data refused')
+        check(call(path+'/result','POST',t,EDITOR,m,f)[1]['replayed'] is True,'retry first export after second')
         state=call('/demo/sessions/'+s['session_id']+'/status',token=s['viewer_token'])[1]
-        check(state['received']['manifest']==m and state['received']['images']['drawing-1']['media_type']=='image/png','viewer image + JSON')
-        check(call(path+'/cancel','POST',t,EDITOR)[0]==409,'cancel after received refused')
+        check(state['deliveries'][0]['manifest']==m and state['deliveries'][1]['manifest']==changed and len(state['deliveries'])==2,'both exports retained once')
+        code,closed,_=call('/demo/sessions/'+s['session_id']+'/close','POST',token=s['viewer_token'],origin=BASE)
+        check(code==200 and closed['status']=='closed' and len(closed['deliveries'])==2,'viewer closes without deleting deliveries')
+        check(call(path+'/result','POST',t,EDITOR,changed,f)[0]==410,'closed session rejects further exports')
         s,t=create();path='/grafxdico/sessions/'+s['session_id']
         check(call(path+'/cancel','POST',t,EDITOR)[1]['status']=='discarded','cancel')
         check(call(path+'/request',token=t,origin=EDITOR)[0]==410,'cancelled expired')
-        s,t=create();p=Path(data)/(s['session_id']+'.json');r=json.loads(p.read_text());r['expires']=int(time.time())-1;p.write_text(json.dumps(r))
+        s,t=create();p=Path(data)/(s['session_id']+'.json');r=json.loads(p.read_text());r['expires']=int(time.time())+1680;p.write_text(json.dumps(r))
+        check(call('/demo/sessions/'+s['session_id']+'/status',token=s['viewer_token'])[0]==200 and json.loads(p.read_text())['expires']>r['expires'],'active viewer extends idle timeout')
+        r=json.loads(p.read_text());r['expires']=int(time.time())-1;p.write_text(json.dumps(r))
         check(call('/grafxdico/sessions/'+s['session_id']+'/request',token=t,origin=EDITOR)[0]==410,'TTL')
         if (ROOT.parent/'esempi-contratto-attuale/assets/drawing-1.jpg').exists():
             s,t=create();m,f=payload(s,'image/jpeg')

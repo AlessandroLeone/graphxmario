@@ -23,7 +23,7 @@ Se l'editor reale è su una sottopagina, cambia `GRAPHXDICO_URL` con l'indirizzo
 
 `/healthz` risponde con JSON `status: ok`. `/demo/config` espone soltanto gli indirizzi pubblici, non segreti. Aprendo la home deve apparire **Mario demo / Ricevitore GraphXDico**, non l'editor di disegno della versione precedente.
 
-Le sessioni durano 30 minuti, sono isolate da token e conservate fuori dalla cartella pubblica. Non serve un volume permanente: il redeploy può eliminare le sessioni di prova. Limiti di capienza e frequenza impediscono accumulo indefinito; i file scaduti vengono eliminati alle richieste successive. Usa esclusivamente dati dimostrativi. Non è un archivio né un servizio di produzione.
+Le sessioni scadono dopo 30 minuti di inattivita', sono isolate da token e conservate fuori dalla cartella pubblica. Non serve un volume permanente: il redeploy può eliminare le sessioni di prova. Limiti di capienza e frequenza impediscono accumulo indefinito; i file scaduti vengono eliminati alle richieste successive. Usa esclusivamente dati dimostrativi. Non è un archivio né un servizio di produzione.
 
 ## Protocollo dell'editor
 
@@ -33,7 +33,7 @@ L'apertura aggiunge `?session=ID#token=TOKEN`. L'editor configura la propria ori
 - `POST /grafxdico/sessions/{id}/result` — multipart `manifest` JSON + `assets[id]`
 - `POST /grafxdico/sessions/{id}/cancel`
 
-Autenticazione `Authorization: Bearer TOKEN`; niente cookie Mario. Richiesta e risposta usano `mario.grafxdico`, versione 1. Il risultato completo viene confermato con 201/staged; il retry identico con 200/replayed. Dopo il successo l'editor invia `GRAFXDICO_DONE` via postMessage all'origine esatta e chiude. La demo interroga anche il server. La X non esporta.
+Autenticazione `Authorization: Bearer TOKEN`; niente cookie Mario. Richiesta e risposta usano `mario.grafxdico`, versione 1. Il risultato completo viene confermato con 201/staged; il retry identico con 200/replayed. Dopo il successo l'editor invia `GRAFXDICO_DONE` via postMessage all'origine esatta e resta aperto per altri invii. La demo interroga anche il server. La X non esporta.
 
 Questa versione prova il percorso **multipart** dell'adapter, non l'import alternativo ZIP. Non replica i permessi, lock, revisioni storiche, stampa PDF e applicazione ai documenti del Mario completo. Verifica identità della richiesta, gruppo completo, tipi di colonna, file, MIME, dimensioni e SHA256. Il superamento di questo ricevitore dimostra lo scambio; non certifica tutte le validazioni del prodotto completo.
 
@@ -49,3 +49,11 @@ PHP 8.4 e Chrome; nessuna libreria installata via npm. Gli artefatti temporanei 
 ## URL editor modificabile
 
 La pagina contiene il campo Indirizzo di GraphXDico: inserire l’URL completo e avviare una nuova prova. L’ultimo URL usato resta nel solo browser (localStorage), non cambia altri utenti. GRAPHXDICO_URL è solo il valore iniziale. La sessione fissa l’origine CORS del destinatario selezionato; i token restano obbligatori. Nessuna richiesta dal server all’URL scelto. In HTTPS usare un editor HTTPS. Indicare l’URL finale, senza credenziali, frammenti # o parametri session/token. Le sottopagine e gli altri parametri query sono conservati.
+
+## Invii successivi dalla stessa finestra
+
+Ogni invio contiene una immagine PNG/JPEG e un solo manifest JSON con piu' tabelle. La sessione conserva una lista ordinata di deliveries, senza sovrascrivere gli invii precedenti. Il result_id rende idempotente il retry di uno stesso pacchetto; un nuovo lavoro usa un nuovo result_id. L'adapter non deve chiudere la finestra dopo l'invio: usare chiudiDopoInvio: false.
+
+La chiusura della finestra viene osservata da Mario, che chiude la sessione via endpoint viewer autenticato /demo/sessions/{id}/close. Anche cancel dall'editor conclude la sessione conservando gli invii esistenti. Dopo la chiusura nuovi invii sono rifiutati. Il token resta valido durante la sessione: scadenza dopo 30 minuti di inattivita', rinnovata mentre la pagina resta in ascolto. Il limite dimostrativo e' 100 invii e 64 MiB di stato per sessione, con una immagine di massimo 10 MiB per invio. Non e' un archivio persistente: scaricare i dati prima di avviare un'altra sessione o chiudere Mario.
+
+Il Mario completo non e' stato modificato: il flusso attuale e' a risultato singolo. Occorre adeguare sessione, append dei blocchi immagine+tabelle, persistenza e stampa. Questo lavoro sostituisce l'ipotesi NON pubblicata di N immagini in un unico invio.

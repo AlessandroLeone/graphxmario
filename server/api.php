@@ -58,7 +58,7 @@ function validate(array $manifest, array $request): array {
         $keys=$original['kind']==='image'?['target_id','kind','schema_id','schema_version','asset_ids']:['target_id','kind','schema_id','schema_version','rows'];
         requireThat(!array_diff(array_keys($target),$keys),'target_keys','Chiavi della destinazione non previste.');
         if ($original['kind']==='image') {
-            requireThat(is_array($target['asset_ids']??null) && count($target['asset_ids'])===1 && is_string($target['asset_ids'][0]??null),'asset_required','Serve una sola immagine per disegno.');
+            requireThat(is_array($target['asset_ids']??null) && count($target['asset_ids'])===1 && is_string($target['asset_ids'][0]??null),'asset_required','Invia una sola immagine per ogni esportazione.');
             $used[]=$target['asset_ids'][0];
         } else {
             requireThat(is_array($target['rows']??null) && array_is_list($target['rows']),'rows_invalid','rows deve essere un elenco.');
@@ -149,13 +149,13 @@ try {
         foreach ($request['targets'] as &$target) { $old=$target['target_id']; $target['target_id']='tgt_'.bin2hex(random_bytes(12)); $map[$old]=$target['target_id']; } unset($target);
         $request['group']['group_id']='grp_'.bin2hex(random_bytes(12));
         $request['group']['required_target_ids']=array_values($map);
-        $record=['editor_origin'=>$editorOrigin,'token_hash'=>hash('sha256',$token),'viewer_hash'=>hash('sha256',$viewer),'expires'=>$now+TTL,'request'=>$request,'status'=>'open','received'=>null,'last_rejection'=>null];
+        $record=['editor_origin'=>$editorOrigin,'token_hash'=>hash('sha256',$token),'viewer_hash'=>hash('sha256',$viewer),'expires'=>$now+TTL,'request'=>$request,'status'=>'open','received'=>null,'deliveries'=>[],'last_rejection'=>null];
         file_put_contents($dir.'/'.$id.'.json',json_encode($record,JSON_THROW_ON_ERROR),LOCK_EX);
         flock($global,LOCK_UN); fclose($global);
         reply(201,['session_id'=>$id,'viewer_token'=>$viewer,'request'=>$request,'editor_origin'=>$editorOrigin,'editor_url'=>$editorUrl.(str_contains($editorUrl,'?')?'&':'?').'session='.$id.'#token='.$token]);
     }
     flock($global,LOCK_UN); fclose($global);
-    if (!preg_match('~^/(grafxdico|demo)/sessions/(gds_[a-f0-9]{32})(?:/(request|result|cancel|status))?$~D',$path,$matches)) fail(404,'not_found','Percorso inesistente.');
+    if (!preg_match('~^/(grafxdico|demo)/sessions/(gds_[a-f0-9]{32})(?:/(request|result|cancel|status|close))?$~D',$path,$matches)) fail(404,'not_found','Percorso inesistente.');
     [$full,$area,$id]=$matches; $action=$matches[3]??'status';
     $file=$dir.'/'.$id.'.json';
     if (!is_file($file)) fail(401,'unauthorized','Sessione non valida.');
@@ -173,16 +173,22 @@ try {
     $hash=$area==='demo'?'viewer_hash':'token_hash';
     if (!hash_equals($record[$hash],hash('sha256',bearer()))) fail(401,'unauthorized','Sessione non valida.');
     if ($record['expires']<time()) fail(410,'session_expired','Sessione scaduta. Riapri GraphXDico.');
-    if ($area==='demo') {
-        if ($action!=='status' || $method!=='GET') fail(405,'method_not_allowed','Operazione non disponibile.');
-        reply(200,['status'=>$record['status'],'request'=>$record['request'],'received'=>$record['received'],'last_rejection'=>$record['last_rejection']]);
+    $record['deliveries'] ??= $record['received'] ? [$record['received']+['digest'=>$record['digest']??'']] : [];
+    if (!in_array($record['status'],['closed','discarded'],true) && $record['expires']<time()+TTL-60) {
+        $record['expires']=time()+TTL; $record['request']['expires_at']=gmdate('c',$record['expires']); saveRecord($handle,$record);
     }
-    if ($record['status']==='discarded') fail(410,'session_expired','Sessione annullata.');
+    if ($area==='demo') {
+        if ($action==='close' && $method==='POST') {
+            $record['status']=$record['deliveries']?'closed':'discarded'; saveRecord($handle,$record);
+        } elseif ($action!=='status' || $method!=='GET') fail(405,'method_not_allowed','Operazione non disponibile.');
+        $deliveries=array_map(fn($d)=>array_diff_key($d,['digest'=>true]),$record['deliveries']);
+        reply(200,['status'=>$record['status'],'request'=>$record['request'],'received'=>$record['received'],'deliveries'=>$deliveries,'last_rejection'=>$record['last_rejection']]);
+    }
+    if (in_array($record['status'],['closed','discarded'],true)) fail(410,'session_closed','Finestra chiusa: avvia una nuova sessione. Gli invii precedenti restano ricevuti.');
     if ($action==='request' && $method==='GET') reply(200,$record['request']);
     if ($action==='cancel' && $method==='POST') {
-        if ($record['status']==='staged') fail(409,'session_used','Risultato già ricevuto.');
-        $record['status']='discarded'; saveRecord($handle,$record);
-        reply(200,['protocol'=>PROTOCOL,'version'=>1,'session_id'=>$id,'status'=>'discarded']);
+        $record['status']=$record['deliveries']?'closed':'discarded'; saveRecord($handle,$record);
+        reply(200,['protocol'=>PROTOCOL,'version'=>1,'session_id'=>$id,'status'=>$record['status']]);
     }
     if ($action!=='result' || $method!=='POST') fail(405,'method_not_allowed','Operazione non disponibile.');
     if ((int)($_SERVER['CONTENT_LENGTH']??0)>25165824) fail(413,'payload_large','Invio troppo grande (massimo 24 MiB).');
@@ -198,14 +204,23 @@ try {
         $status=in_array($code,['session_id','request_id','document_revision'],true)?409:422;
         fail($status,$code,$message);
     }
-    $digest=hash('sha256',$raw); // Same immutable JSON + verified image hashes on retry.
-    $replayed=$record['status']==='staged';
-    if ($replayed && ($record['digest']!==$digest || $record['received']['manifest']['result_id']!==$manifest['result_id'])) fail(409,'session_used','Sessione già usata con un altro risultato.');
-    if (!$replayed) {
-        $record['status']='staged'; $record['digest']=$digest; $record['last_rejection']=null;
-        $record['received']=['at'=>gmdate('c'),'manifest'=>$manifest,'images'=>$images]; saveRecord($handle,$record);
+    $digest=hash('sha256',$raw);
+    $replayed=false; $sequence=null;
+    foreach ($record['deliveries'] as $i=>$delivery) {
+        if ($delivery['manifest']['result_id']!==$manifest['result_id']) continue;
+        if (!hash_equals($delivery['digest'],$digest)) fail(409,'result_conflict','Questo result_id appartiene a un invio diverso.');
+        $replayed=true; $sequence=$i+1; break;
     }
-    reply($replayed?200:201,['protocol'=>PROTOCOL,'version'=>1,'session_id'=>$id,'result_id'=>$manifest['result_id'],'status'=>'staged','replayed'=>$replayed,'message'=>'Risultato ricevuto dal simulatore Mario.']);
+    if (!$replayed) {
+        if (count($record['deliveries'])>=($record['request']['limits']['max_deliveries']??100)) fail(413,'delivery_limit','Raggiunto il limite di invii della demo. Scarica i risultati e avvia una nuova sessione.');
+        $record['status']='open'; $record['last_rejection']=null;
+        $record['received']=['at'=>gmdate('c'),'manifest'=>$manifest,'images'=>$images];
+        $record['deliveries'][]=$record['received']+['digest'=>$digest];
+        $sequence=count($record['deliveries']);
+        if (strlen(json_encode($record,JSON_THROW_ON_ERROR))>($record['request']['limits']['session_bytes']??67108864)) fail(413,'session_size','Sessione demo piena. Gli invii precedenti sono conservati: scaricali e avvia una nuova sessione.');
+        saveRecord($handle,$record);
+    }
+    reply($replayed?200:201,['protocol'=>PROTOCOL,'version'=>1,'session_id'=>$id,'result_id'=>$manifest['result_id'],'status'=>'staged','sequence'=>$sequence,'replayed'=>$replayed,'message'=>'Invio ricevuto. Puoi continuare a lavorare e inviare dalla stessa finestra.']);
 } catch (Throwable $e) {
     // No request/token/manifest logging.
     fail(500,'server_error','Il ricevitore non riesce a completare la richiesta. Controlla la configurazione del server.');

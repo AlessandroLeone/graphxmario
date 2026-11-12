@@ -1,35 +1,39 @@
 COLLEGARE GRAPHXDICO AL SIMULATORE MARIO
 
 Pagina che simula Mario: https://mario.meralab.it/
-Pagina del vero GraphXDico: https://graphxdico.it/ (sostituisci con l’URL preciso del tuo editor)
-Origine Mario da configurare in GraphXDico: https://mario.meralab.it
+Pagina GraphXDico: https://graphxdico.it/ (sostituisci con l'URL preciso dell'editor)
+Origine Mario da configurare: https://mario.meralab.it
 
-Il tuo editor esiste già: aggiungi il collegamento a questo ricevitore online, senza dipendere da un Mario installato sul PC.
+Mario apre il tuo editor in una finestra con ?session=ID#token=TOKEN. L'indirizzo dell'editor si imposta nel campo della demo, senza altri deploy. Usa l'URL HTTPS finale, inclusa l'eventuale sottopagina.
 
-L'utente apre mario.meralab.it e clicca «Apri GraphXDico». Si apre la tua pagina con ?session=ID#token=TOKEN. Il simulatore resta in attesa. Nella demo l’URL del tuo editor si può cambiare nel campo «Indirizzo di GraphXDico», senza modificare file o rifare deploy. Comunica l’URL HTTPS esatto, inclusa l’eventuale sottopagina; deve essere l’origine finale, senza redirect verso un altro dominio.
+COME DEVE FUNZIONARE
+Ogni click su Esporta verso Mario invia UNA immagine PNG o JPEG e UN JSON contenente le tabelle associate a quell'immagine. La finestra GraphXDico RESTA APERTA. L'utente continua a lavorare e puo' inviare ancora: Mario aggiunge Invio 1, Invio 2, ecc. senza sostituire i precedenti. Quando l'utente chiude GraphXDico, Mario conclude la ricezione e conserva gli invii gia' arrivati. La X non esporta modifiche non ancora inviate.
 
-Usa il file allegato grafxdico-mario-client.mjs: gestisce richiesta, invio e conferma. Configuralo con:
-  marioOrigin: 'https://mario.meralab.it'
-  originiConsentite: ['https://mario.meralab.it']
-
-Le operazioni sono:
-  const mario = creaClientMario({ marioOrigin, originiConsentite });
+Usa l'adapter allegato grafxdico-mario-client.mjs.
+All'apertura, una sola volta:
+  const mario = creaClientMario({
+    marioOrigin: 'https://mario.meralab.it',
+    originiConsentite: ['https://mario.meralab.it']
+  });
   const richiesta = await mario.leggiRichiesta();
-  const pacchetto = await mario.prepara(richiesta, { disegni, tabelle });
-  await mario.invia(pacchetto, { chiudiDopoInvio: true });
 
-Importa creaClientMario dal file allegato. Collega queste operazioni ai tuoi dati e al pulsante «Esporta verso Mario».
+Per OGNI nuovo invio:
+  const pacchetto = await mario.prepara(richiesta, {
+    disegni: [{ targetId: idDisegno, blob: immagine, caption: titolo }],
+    tabelle: [{ targetId: idTabella1, rows: righe1 }, { targetId: idTabella2, rows: righe2 }]
+  });
+  await mario.invia(pacchetto, { chiudiDopoInvio: false });
 
-Invia SEMPRE insieme disegno e tabelle:
-- disegni: [{ targetId, blob, caption }], con un Blob PNG o JPEG reale;
-- tabelle: [{ targetId, rows }], con i valori JSON delle righe prodotti da GraphXDico.
+Importa creaClientMario dall'adapter. immagine e' un Blob PNG/JPEG reale. L'adapter spedisce un solo manifest JSON con tutte le tabelle e il riferimento all'immagine, insieme al file immagine nello stesso multipart: niente ZIP, URL immagine o base64 nel JSON.
 
-targetId e colonne arrivano da richiesta.targets. Ogni riga usa le chiavi delle colonne richieste. I campi text accettano stringhe/null, i boolean true/false/null. Restituisci tutte le tabelle richieste, anche quelle non pertinenti con rows: []; almeno una deve contenere righe. Non serve uno ZIP: l'adapter invia manifest JSON e file immagine insieme.
+targetId e colonne si leggono da richiesta.targets. Usa le chiavi e i tipi indicati: text = stringa/null, boolean = true/false/null. Invia tutte le tabelle richieste, quelle non usate con rows: []; almeno una deve avere righe. Se le tue colonne o tabelle sono diverse, fornisci un JSON d'esempio: concordiamo la mappatura senza inventarla.
 
-Dopo la conferma del ricevitore, l'adapter notifica Mario e chiude la finestra. Se la chiusura è impedita mostra «Invio riuscito, puoi chiudere». Su errore conserva il lavoro; per riprovare lo stesso invio riusa pacchetto. La X non esporta. Per Annulla usa mario.annulla({ chiudiDopoAnnulla: true }). Non registrare token nei log o nello storage; dopo aver creato il client rimuovi #token dalla barra con history.replaceState.
+Dopo ogni conferma mostra Invio riuscito e lascia aperto l'editor. Disabilita Esporta mentre un invio e' in corso. Nuovo lavoro = nuovo prepara() e nuovo result_id; errore di rete = riusa lo STESSO pacchetto per il retry, senza creare un duplicato. Un errore non deve cancellare il lavoro.
 
-Il simulatore mostrerà immagine, tabelle e JSON ricevuti. Se le tue colonne sono diverse, mandaci un JSON d'esempio con significato e tipi dei valori: concordiamo la mappatura prima di adattare Mario. Non considerare automaticamente accettate colonne aggiuntive.
+Per un pulsante Termina usa mario.annulla({ chiudiDopoAnnulla: true }): chiude la sessione senza eliminare gli invii gia' ricevuti. In alternativa l'utente chiude la finestra dopo la conferma dell'ultimo invio. Non configurare l'editor per isolare la finestra dal suo opener: serve il collegamento con la finestra Mario.
 
-La prova da fare insieme: apri il tuo editor DAL simulatore, prepara uno schema e una distinta, esporta PNG o JPEG e controlla che immagine e righe arrivino al simulatore. Prova anche Annulla.
+Non registrare token nei log o nello storage. Dopo creaClientMario puoi rimuovere #token dalla barra con history.replaceState. La demo accetta 1 immagine fino a 10 MiB per invio; gli altri limiti sono in richiesta.limits.
 
-Quando il Mario originale sarà online, useremo lo stesso protocollo e configureremo in GraphXDico la sua origine reale al posto di https://mario.meralab.it. In Mario configureremo il tuo URL editor. Faremo una prova finale sul documento reale: il simulatore verifica lo scambio, non il salvataggio e la stampa del prodotto completo.
+Prova finale: dalla demo apri GraphXDico UNA volta; invia uno schema con le sue tabelle, continua a lavorare e invia un secondo schema con altre tabelle. Devono comparire due invii separati. Chiudi GraphXDico e verifica che entrambi restino visibili.
+
+Quando il Mario completo sara' online configureremo la sua origine reale. Il simulatore verifica lo scambio; ricezione multipla, salvataggio e stampa dei blocchi nel prodotto completo vanno allineati e verificati separatamente.
