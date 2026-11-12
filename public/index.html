@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; connect-src 'self' http: https:; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <meta name="robots" content="noindex, nofollow">
+  <title>GraphXDico — demo</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <header class="testata">
+    <div class="marchio">
+      <svg class="marchio-icona" viewBox="0 0 32 32" aria-hidden="true"><path d="M14.5 9.2A7 7 0 1 0 15 22.6V16.5H10M19 9l9 14M28 9l-9 14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div>
+        <h1>GraphXDico <span class="trattino">—</span> demo</h1>
+        <p class="sottotitolo" data-testid="gruppo-etichetta">Collegamento con Mario</p>
+      </div>
+    </div>
+    <span class="badge-demo" title="Applicazione dimostrativa: schema e dati d'esempio non reali">DEMO</span>
+    <p class="scadenza" data-testid="scadenza" hidden></p>
+  </header>
+
+  <main id="contenuto" tabindex="-1">
+    <section class="schermata" data-testid="caricamento" aria-busy="true">
+      <p class="schermata-titolo">Connessione a Mario in corso…</p>
+    </section>
+  </main>
+
+  <dialog class="conferma" data-testid="dialogo-annulla" aria-labelledby="annulla-titolo">
+    <form method="dialog">
+      <h2 id="annulla-titolo">Annullare la sessione GraphXDico?</h2>
+      <p>Mario non riceverà nulla e il documento resta com'è. Il lavoro di questa finestra andrà perso, salvo che tu ne abbia salvato una copia.</p>
+      <div class="azioni-dialogo">
+        <button value="no" class="pulsante" data-testid="annulla-no" autofocus>Torna al lavoro</button>
+        <button value="si" class="pulsante pericolo" data-testid="annulla-si">Annulla la sessione</button>
+      </div>
+    </form>
+  </dialog>
+
+  <noscript><p class="schermata">Per usare GraphXDico — demo serve JavaScript.</p></noscript>
+</body>
+</html>

@@ -1,0 +1,5 @@
+{
+  "nota": "Sostituire ENTRAMBE le occorrenze dell'origine segnaposto con l'origine esatta del Client Mario. Configurazione pubblica: non inserire segreti.",
+  "marioOrigin": "https://mario.example.invalid",
+  "originiConsentite": ["https://mario.example.invalid"]
+}
