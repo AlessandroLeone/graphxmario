@@ -19,11 +19,12 @@ const c=document.createElement('canvas');c.width=640;c.height=400;const x=c.getC
 const blob=await new Promise(r=>c.toBlob(r,window.format));
 const images=q.targets.filter(t=>t.kind==='image').map(t=>({targetId:t.target_id,blob}));
 const tables=q.targets.filter(t=>t.kind==='table').map((t,i)=>({targetId:t.target_id,rows:i<2?[Object.fromEntries(t.columns.map(c=>[c.key,c.type==='boolean'?true:'Riga ricevuta']))]:[]}));
-const p=await client.prepara(q,{disegni:images,tabelle:tables});await client.invia(p,{chiudiDopoInvio:false});window.lastAck=await client.invia(p);window.sent=(window.sent||0)+1;
+const native=[1,2].map(i=>({id:'native-'+i,titolo:'Tabella clima '+i,colonne:[{key:'ref',label:'Riferimento'},{key:'name',label:'Nome'},{key:'note',label:'Note'}],righe:[{ref:'C'+i,name:'Unità interna',note:'<img src=x onerror=alert(1)>'}]}));
+const p=await client.prepara(q,window.format==='image/jpeg'?{disegni:images,tabelleNative:native}:{disegni:images,tabelle:tables});await client.invia(p,{chiudiDopoInvio:false});window.lastAck=await client.invia(p);window.sent=(window.sent||0)+1;
 }catch(e){document.body.append(e.message);window.failure=e.message;}};
 document.querySelector('#cancel').onclick=()=>client.annulla({chiudiDopoAnnulla:true});
 </script>`;
-const external=http.createServer((req,res)=>{if(req.url.startsWith('/adapter.mjs')){res.setHeader('Content-Type','text/javascript');res.end(readFileSync(resolve(root,'integration/grafxdico-mario-client.mjs')));}else{res.setHeader('Content-Type','text/html');res.end(html);}});
+const external=http.createServer((req,res)=>{if(req.url.startsWith('/adapter.mjs')){res.setHeader('Content-Type','text/javascript');res.end(readFileSync(resolve(root,'integration/grafxdico-mario-client.mjs')));}else{res.setHeader('Content-Type','text/html; charset=utf-8');res.end(html);}});
 await new Promise(r=>external.listen(ep,'127.0.0.1',r));
 const php=spawn(process.env.PHP_BINARY??'php',['-d','xdebug.mode=off','-d','xdebug.log=','-S',`127.0.0.1:${mp}`,'-t','public','server/router.php'],{cwd:root,env:{...process.env,PUBLIC_ORIGIN:origin,GRAPHXDICO_URL:editor+'/',DEMO_DATA_DIR:resolve(out,'data')},windowsHide:true,stdio:'ignore'});
 const chrome=spawn(process.env.CHROME_PATH??'C:/Program Files/Google/Chrome/Application/chrome.exe',['--headless=new',`--remote-debugging-port=${cp}`,`--user-data-dir=${resolve(out,'chrome')}`,'--no-first-run','--no-default-browser-check','about:blank'],{windowsHide:true,stdio:'ignore'});
@@ -60,6 +61,11 @@ try{
   assert(await evaluate(page,n=>document.querySelectorAll('.images img').length===n,count),'one image per delivery');
   assert(await evaluate(page,n=>document.querySelectorAll('.tables table').length===n*2,count),'two tables per delivery');
   assert(await evaluate(page,f=>document.querySelector('.delivery:last-child img').src.startsWith('data:'+f),format),format+' rendered');
+  if(format==='image/jpeg') {
+    assert(await evaluate(page,()=>document.querySelector('.delivery:last-child .tables').textContent.includes('Unità interna')),'native rows rendered');
+    assert(await evaluate(page,()=>document.querySelector('.delivery:last-child th').textContent==='Riferimento'),'native column headers rendered');
+    assert(await evaluate(page,()=>document.querySelector('.delivery:last-child .tables img')===null),'native text cannot inject markup');
+  }
   assert(await evaluate(page,()=>document.querySelector('#json').textContent.includes('mario.grafxdico')),'JSON visible');
   assert(await evaluate(page,()=>document.documentElement.scrollWidth<=innerWidth+1),'desktop no overflow');
  }

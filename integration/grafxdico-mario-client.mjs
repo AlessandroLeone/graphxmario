@@ -52,7 +52,7 @@ export function creaClientMario({ marioOrigin, originiConsentite }) {
     }
     return richiesta;
   }
-  async function prepara(richiesta, { tabelle = [], disegni = [] }) {
+  async function prepara(richiesta, { tabelle = [], disegni = [], tabelleNative }) {
     if (richiesta.session_id !== sessionId || richiesta.protocol !== 'mario.grafxdico' || richiesta.version !== 1) {
       throw new Error('Richiesta non appartenente a questa integrazione.');
     }
@@ -69,6 +69,11 @@ export function creaClientMario({ marioOrigin, originiConsentite }) {
       result_id: `grafxdico-${crypto.randomUUID()}`, targets: [], assets: []
     };
     const file = [];
+    if (tabelleNative !== undefined) {
+      if (!Array.isArray(tabelleNative) || tabelle.length) throw new Error('Usa tabelleNative oppure tabelle, senza mescolare le due rappresentazioni.');
+      manifest.grafxdico_tabelle=structuredClone(tabelleNative);
+      tabelle=richiesta.targets.filter(t=>t.kind==='table').map(t=>({targetId:t.target_id,rows:[]}));
+    }
     for (const tabella of tabelle) {
       if (!Array.isArray(tabella.rows)) throw new Error('Le righe devono essere un array.');
       // Il chiamante costruisce le righe secondo columns/key/type della richiesta.
@@ -108,11 +113,11 @@ export function creaClientMario({ marioOrigin, originiConsentite }) {
       throw new Error(`Risultato incompleto: invia insieme disegno e tabelle. Mancano: ${nomi}.`);
     }
     const tabelleDelGruppo = manifest.targets.filter((t) => t.kind === 'table' && obbligatori.includes(t.target_id));
-    if (tabelleDelGruppo.length && tabelleDelGruppo.every((t) => t.rows.length === 0)) {
+    if (tabelleNative !== undefined ? !tabelleNative.some(t=>Array.isArray(t.righe) && t.righe.length>0) : tabelleDelGruppo.length && tabelleDelGruppo.every((t) => t.rows.length === 0)) {
       throw new Error('Le tabelle del gruppo sono tutte vuote: compila la distinta del disegno.');
     }
     if (file.length > richiesta.limits.max_images) throw new Error('Troppe immagini.');
-    const righe = manifest.targets.reduce((n, t) => n + (t.rows?.length || 0), 0);
+    const righe = tabelleNative !== undefined ? tabelleNative.reduce((n,t)=>n+(t.righe?.length||0),0) : manifest.targets.reduce((n, t) => n + (t.rows?.length || 0), 0);
     if (righe > richiesta.limits.max_rows) throw new Error('Troppe righe.');
     // Congelare il JSON qui: i retry devono inviare gli stessi dati e lo stesso ID.
     return { manifestJson: JSON.stringify(manifest), resultId: manifest.result_id, file };

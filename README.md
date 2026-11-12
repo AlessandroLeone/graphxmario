@@ -57,3 +57,9 @@ Ogni invio contiene una immagine PNG/JPEG e un solo manifest JSON con piu' tabel
 La chiusura della finestra viene osservata da Mario, che chiude la sessione via endpoint viewer autenticato /demo/sessions/{id}/close. Anche cancel dall'editor conclude la sessione conservando gli invii esistenti. Dopo la chiusura nuovi invii sono rifiutati. Il token resta valido durante la sessione: scadenza dopo 30 minuti di inattivita', rinnovata mentre la pagina resta in ascolto. Il limite dimostrativo e' 100 invii e 64 MiB di stato per sessione, con una immagine di massimo 10 MiB per invio. Non e' un archivio persistente: scaricare i dati prima di avviare un'altra sessione o chiudere Mario.
 
 Il Mario completo non e' stato modificato: il flusso attuale e' a risultato singolo. Occorre adeguare sessione, append dei blocchi immagine+tabelle, persistenza e stampa. Questo lavoro sostituisce l'ipotesi NON pubblicata di N immagini in un unico invio.
+
+## Tabelle native GraphXDico
+
+Supportata l'estensione esplicita grafxdico_tabelle (id, titolo, colonne key/label, righe, livello/testo facoltativi) con riferimenti_url. I target possono contenere il formato grafxdico-tabella-v1, come nel payload reale ricevuto: le copie devono coincidere con la fonte e i riferimenti devono appartenere alla sessione. Non si accettano indiscriminatamente chiavi sconosciute.
+
+L'adapter accetta tabelleNative al posto di tabelle e costruisce una singola rappresentazione canonica. Il renderer usa titoli/colonne originari e testo escapato. Non classifica un'unita' clima come materiale F1 solo perche' il vecchio target di trasporto aveva quel nome. La conversione nei moduli reali Mario rimane separata. L'immagine resta un file multipart assets[drawing-1], validato per MIME, dimensioni e SHA-256; il solo manifest non contiene l'immagine.

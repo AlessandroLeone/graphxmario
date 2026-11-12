@@ -20,13 +20,19 @@ All'apertura, una sola volta:
 Per OGNI nuovo invio:
   const pacchetto = await mario.prepara(richiesta, {
     disegni: [{ targetId: idDisegno, blob: immagine, caption: titolo }],
-    tabelle: [{ targetId: idTabella1, rows: righe1 }, { targetId: idTabella2, rows: righe2 }]
+    tabelleNative: [{
+      id: "clima-estivo", titolo: "Clima estivo",
+      colonne: [{key:"ref",label:"Rif."},{key:"name",label:"Nome"},{key:"note",label:"Note"}],
+      righe: [{ref:"C1",name:"Unita esterna",note:""}]
+    }]
   });
   await mario.invia(pacchetto, { chiudiDopoInvio: false });
 
 Importa creaClientMario dall'adapter. immagine e' un Blob PNG/JPEG reale. L'adapter spedisce un solo manifest JSON con tutte le tabelle e il riferimento all'immagine, insieme al file immagine nello stesso multipart: niente ZIP, URL immagine o base64 nel JSON.
 
-targetId e colonne si leggono da richiesta.targets. Usa le chiavi e i tipi indicati: text = stringa/null, boolean = true/false/null. Invia tutte le tabelle richieste, quelle non usate con rows: []; almeno una deve avere righe. Se le tue colonne o tabelle sono diverse, fornisci un JSON d'esempio: concordiamo la mappatura senza inventarla.
+Il targetId del disegno arriva da richiesta.targets (kind=image). Le tabelleNative portano le proprie colonne e righe: aggiungi una voce per ciascuna tabella prodotta da GraphXDico. Le celle possono contenere testo, numeri, boolean o null; le chiavi delle celle devono esistere nelle colonne. La demo mostra questi dati senza convertirli in categorie F1/F2 di Mario. Almeno una tabella deve contenere righe. Non usare contemporaneamente tabelleNative e tabelle.
+
+E' ancora supportato il formato gia' prodotto da GraphXDico con grafxdico_tabelle e riferimenti_url nel manifest e grafxdico nei target. Le copie delle tabelle devono coincidere: non modificare una copia lasciando l'altra diversa. Il formato preferito dell'adapter usa tabelleNative e non richiede queste copie. La mappatura delle colonne al Mario completo verra' concordata sul JSON reale.
 
 Dopo ogni conferma mostra Invio riuscito e lascia aperto l'editor. Disabilita Esporta mentre un invio e' in corso. Nuovo lavoro = nuovo prepara() e nuovo result_id; errore di rete = riusa lo STESSO pacchetto per il retry, senza creare un duplicato. Un errore non deve cancellare il lavoro.
 

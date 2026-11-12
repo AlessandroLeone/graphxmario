@@ -4,6 +4,7 @@ declare(strict_types=1);
 // Standalone Mario receiver. No connection to the real Mario database.
 const PROTOCOL = 'mario.grafxdico';
 const TTL = 1800;
+require_once __DIR__.'/native-tables.php';
 function reply(int $status, array $data): never {
     http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
@@ -40,7 +41,7 @@ function saveRecord($handle, array $record): void {
     rewind($handle); ftruncate($handle, 0); fwrite($handle, $bytes); fflush($handle);
 }
 function validate(array $manifest, array $request): array {
-    $allowed=['protocol','version','session_id','request_id','document_revision','result_id','targets','assets'];
+    $allowed=['protocol','version','session_id','request_id','document_revision','result_id','targets','assets','riferimenti_url','grafxdico_tabelle'];
     requireThat(!array_diff(array_keys($manifest),$allowed),'manifest_keys','Il manifest contiene chiavi non previste.');
     foreach (['protocol','version','session_id','request_id','document_revision'] as $key) {
         requireThat(($manifest[$key]??null)===$request[$key],$key,'Identificativo o versione non corrispondente: '.$key);
@@ -49,19 +50,45 @@ function validate(array $manifest, array $request): array {
     requireThat(is_array($manifest['targets']??null) && array_is_list($manifest['targets']),'manifest_targets','targets deve essere un elenco.');
     requireThat(is_array($manifest['assets']??null) && array_is_list($manifest['assets']),'manifest_assets','assets deve essere un elenco.');
     $expected=array_column($request['targets'],null,'target_id'); $seen=[]; $used=[]; $rowCount=0;
+    nativeReferences($manifest['riferimenti_url']??null,$request);
+    $native=isset($manifest['grafxdico_tabelle'])?nativeTables($manifest['grafxdico_tabelle'],$request):null;
+    $nativeById=$native===null?[]:array_column($native,null,'id'); $nativeSeen=[]; $nativeExtensions=false;
+    if ($native!==null) $rowCount=array_sum(array_map(fn($t)=>count($t['righe']),$native));
     foreach ($manifest['targets'] as $target) {
         requireThat(is_array($target),'target_invalid','Destinazione non valida.');
         $id=$target['target_id']??'';
         requireThat(is_string($id) && isset($expected[$id]) && !isset($seen[$id]),'target_unknown','Destinazione sconosciuta o duplicata.');
         $original=$expected[$id]; $seen[$id]=true;
         foreach (['kind','schema_id','schema_version'] as $key) requireThat(($target[$key]??null)===$original[$key],'target_schema','Schema della destinazione non corrispondente.');
-        $keys=$original['kind']==='image'?['target_id','kind','schema_id','schema_version','asset_ids']:['target_id','kind','schema_id','schema_version','rows'];
+        $keys=$original['kind']==='image'?['target_id','kind','schema_id','schema_version','asset_ids']:['target_id','kind','schema_id','schema_version','rows','grafxdico'];
         requireThat(!array_diff(array_keys($target),$keys),'target_keys','Chiavi della destinazione non previste.');
         if ($original['kind']==='image') {
             requireThat(is_array($target['asset_ids']??null) && count($target['asset_ids'])===1 && is_string($target['asset_ids'][0]??null),'asset_required','Invia una sola immagine per ogni esportazione.');
             $used[]=$target['asset_ids'][0];
         } else {
             requireThat(is_array($target['rows']??null) && array_is_list($target['rows']),'rows_invalid','rows deve essere un elenco.');
+            if ($native!==null) {
+                $projected=[];
+                if (isset($target['grafxdico'])) {
+                    $nativeExtensions=true; $extra=$target['grafxdico'];
+                    requireThat(is_array($extra) && !array_diff(array_keys($extra),['formato','tabelle','riferimenti_url']) && ($extra['formato']??null)==='grafxdico-tabella-v1','native_format','Estensione GraphXDico non valida.');
+                    nativeReferences($extra['riferimenti_url']??null,$request);
+                    foreach (nativeTables($extra['tabelle']??null,$request) as $table) {
+                        requireThat(isset($nativeById[$table['id']]) && $nativeById[$table['id']]===$table && !isset($nativeSeen[$table['id']]),'native_mismatch','Le copie della tabella non coincidono o sono duplicate.');
+                        $nativeSeen[$table['id']]=true;
+                        foreach ($table['righe'] as $row) $projected[]=['title'=>$table['titolo'],'row'=>$row];
+                    }
+                }
+                requireThat(count($target['rows'])===count($projected),'native_mismatch','Righe duplicate diverse dalla tabella originale.');
+                foreach ($target['rows'] as $i=>$row) {
+                    requireThat(is_array($row),'native_rows','Riga non valida.');
+                    if (isset($row['_tabella'])) requireThat($row['_tabella']===$projected[$i]['title'],'native_mismatch','Titolo della tabella non corrispondente.');
+                    unset($row['_tabella']);$expectedRow=$projected[$i]['row'];ksort($row);ksort($expectedRow);
+                    requireThat($row===$expectedRow,'native_mismatch','I dati della tabella sono discordanti.');
+                }
+                continue;
+            }
+            requireThat(!isset($target['grafxdico']),'native_tables','Inviare grafxdico_tabelle insieme all’estensione grafxdico.');
             $columns=array_column($original['columns'],null,'key');
             foreach ($target['rows'] as $row) {
                 requireThat(is_array($row),'rows_invalid','Riga non valida.');
@@ -78,6 +105,7 @@ function validate(array $manifest, array $request): array {
         }
     }
     requireThat(!array_diff($request['group']['required_target_ids'],array_keys($seen)),'result_incomplete','Inviare insieme il disegno e tutte le tabelle richieste.');
+    if ($nativeExtensions) requireThat(!array_diff(array_keys($nativeById),array_keys($nativeSeen)),'native_mismatch','Una tabella dichiarata non compare nei target.');
     requireThat($rowCount>0,'group_tables_empty','Almeno una tabella deve contenere righe.');
     requireThat($rowCount<=$request['limits']['max_rows'],'rows_limit','Troppe righe.');
     requireThat(count($manifest['assets'])<=$request['limits']['max_images'],'asset_limit','Troppe immagini.');

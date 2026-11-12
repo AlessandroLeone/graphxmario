@@ -23,8 +23,13 @@ function render(data) {
     const article=node('article',undefined,'delivery'); article.append(node('h3',`Invio ${index+1}`));
     const layout=node('div',undefined,'results');const images=node('section',undefined,'images');const tables=node('section',undefined,'tables');
     images.append(node('h4','Disegno'));tables.append(node('h4','Tabelle associate'));layout.append(images,tables);article.append(layout);$('deliveries').append(article);
-  for(const target of delivery.manifest.targets) {
-    const original = data.request.targets.find(t=>t.target_id===target.target_id);
+  const native=delivery.manifest.grafxdico_tabelle;
+  const displayTargets=native ? [
+    ...delivery.manifest.targets.filter(t=>t.kind==='image'),
+    ...native.map(t=>({kind:'table',native:true,label:t.titolo,schema_id:t.id,columns:t.colonne,rows:t.righe,text:t.testo}))
+  ] : delivery.manifest.targets;
+  for(const target of displayTargets) {
+    const original = target.native ? target : data.request.targets.find(t=>t.target_id===target.target_id);
     if(target.kind==='image') for(const id of target.asset_ids) {
       const asset = delivery.images[id]; const fig = node('figure'); const img = node('img');
       img.src = `data:${asset.media_type};base64,${asset.base64}`;
@@ -34,6 +39,7 @@ function render(data) {
     }
     if(target.kind==='table') {
       tables.append(node('p', original?.label || target.schema_id, 'table-title'));
+      if(target.native && target.text) tables.append(node('p',target.text,'muted'));
       if(!target.rows.length) { tables.append(node('p','Nessuna riga per questa tabella.','empty')); continue; }
       const wrap = node('div',undefined,'scroll'); wrap.tabIndex = 0; wrap.setAttribute('aria-label',original?.label || 'Tabella ricevuta');
       const table=node('table'); const head=node('thead'); const tr=node('tr'); const body=node('tbody');

@@ -1,0 +1,44 @@
+[
+  {
+    "id": "clima-estivo-test",
+    "titolo": "Tabella C_clima_estivo",
+    "livello": "C_clima_estivo",
+    "colonne": [
+      {
+        "key": "ref",
+        "label": "ref"
+      },
+      {
+        "key": "name",
+        "label": "name"
+      },
+      {
+        "key": "note",
+        "label": "note"
+      }
+    ],
+    "righe": [
+      {
+        "ref": "C1",
+        "name": "Unita  condensante esterna",
+        "note": ""
+      },
+      {
+        "ref": "C2",
+        "name": "Unità interna a parete",
+        "note": ""
+      },
+      {
+        "ref": "C3",
+        "name": "Unità interna a parete",
+        "note": ""
+      },
+      {
+        "ref": "T1",
+        "name": "Tubazioni",
+        "note": ""
+      }
+    ],
+    "testo": null
+  }
+]

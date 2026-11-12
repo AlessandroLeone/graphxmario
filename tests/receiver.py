@@ -115,6 +115,26 @@ with tempfile.TemporaryDirectory(prefix='receiver-', dir=ROOT/'.runtime') as dat
         check(call(path+'/result','POST',t,custom,m,f)[0]==201,'custom editor image and tables accepted')
         for invalid in ['javascript:alert(1)','https://user:pass@example.test/','https://example.test/#fragment','https://example.test/?session=old']:
             check(call('/demo/sessions','POST',origin=BASE,json_body={'editor_url':invalid})[0]==422,'invalid editor URL rejected')
+        s,t=create();path='/grafxdico/sessions/'+s['session_id'];m,f=payload(s,'image/jpeg')
+        refs={k:s['request'][k] for k in ['session_id','request_id','document_revision']}
+        refs.update(parametri={'session':s['session_id']},invio=1,data_invio='2026-11-12T17:10:03.804Z')
+        native=json.loads((ROOT/'tests/native-tables.json').read_text(encoding='utf8'))
+        native[0]['riferimenti_url']=refs;m['riferimenti_url']=refs;m['grafxdico_tabelle']=native
+        for target in m['targets']:
+            if target['kind']!='table':continue
+            group=native if target['schema_id']=='f1.regulated_materials' else []
+            target['rows']=[{**row,'_tabella':table['titolo']} for table in group for row in table['righe']]
+            target['grafxdico']={'formato':'grafxdico-tabella-v1','tabelle':group,'riferimenti_url':refs}
+        bad=json.loads(json.dumps(m));bad['unexpected']=True
+        check(call(path+'/result','POST',t,EDITOR,bad,f)[1]['error']['code']=='manifest_keys','unknown top-level fields still rejected')
+        bad=json.loads(json.dumps(m));bad['targets'][1]['rows'][0]['name']='conflicting value'
+        check(call(path+'/result','POST',t,EDITOR,bad,f)[1]['error']['code']=='native_mismatch','conflicting duplicate tables rejected')
+        bad=json.loads(json.dumps(m));bad['riferimenti_url']['session_id']='another-session'
+        check(call(path+'/result','POST',t,EDITOR,bad,f)[1]['error']['code']=='references','foreign references rejected')
+        check(call(path+'/result','POST',t,EDITOR,m,{})[1]['error']['code']=='asset_upload','missing JPEG remains rejected')
+        check(call(path+'/result','POST',t,EDITOR,m,f)[0]==201,'actual GraphXDico format accepted with real JPEG')
+        state=call('/demo/sessions/'+s['session_id']+'/status',token=s['viewer_token'])[1]
+        check(state['received']['manifest']['grafxdico_tabelle']==native and state['received']['images']['drawing-1']['media_type']=='image/jpeg','native tables and image retained without invented mapping')
         print('PASS',len(passed),'checks:',', '.join(passed))
     finally:
         proc.terminate();proc.wait(timeout=10)
