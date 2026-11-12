@@ -1,46 +1,30 @@
 <!doctype html>
 <html lang="it">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="referrer" content="no-referrer">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; connect-src 'self' http: https:; object-src 'none'; base-uri 'self'; form-action 'none'">
-  <meta name="robots" content="noindex, nofollow">
-  <title>GraphXDico — demo</title>
-  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css">
-  <script type="module" src="./app.js"></script>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer"><meta name="robots" content="noindex,nofollow">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+<title>Mario demo · Collegamento GraphXDico</title>
+<link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/styles.css"><script type="module" src="/app.js"></script>
 </head>
 <body>
-  <header class="testata">
-    <div class="marchio">
-      <svg class="marchio-icona" viewBox="0 0 32 32" aria-hidden="true"><path d="M14.5 9.2A7 7 0 1 0 15 22.6V16.5H10M19 9l9 14M28 9l-9 14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <div>
-        <h1>GraphXDico <span class="trattino">—</span> demo</h1>
-        <p class="sottotitolo" data-testid="gruppo-etichetta">Collegamento con Mario</p>
-      </div>
-    </div>
-    <span class="badge-demo" title="Applicazione dimostrativa: schema e dati d'esempio non reali">DEMO</span>
-    <p class="scadenza" data-testid="scadenza" hidden></p>
-  </header>
-
-  <main id="contenuto" tabindex="-1">
-    <section class="schermata" data-testid="caricamento" aria-busy="true">
-      <p class="schermata-titolo">Connessione a Mario in corso…</p>
-    </section>
-  </main>
-
-  <dialog class="conferma" data-testid="dialogo-annulla" aria-labelledby="annulla-titolo">
-    <form method="dialog">
-      <h2 id="annulla-titolo">Annullare la sessione GraphXDico?</h2>
-      <p>Mario non riceverà nulla e il documento resta com'è. Il lavoro di questa finestra andrà perso, salvo che tu ne abbia salvato una copia.</p>
-      <div class="azioni-dialogo">
-        <button value="no" class="pulsante" data-testid="annulla-no" autofocus>Torna al lavoro</button>
-        <button value="si" class="pulsante pericolo" data-testid="annulla-si">Annulla la sessione</button>
-      </div>
-    </form>
-  </dialog>
-
-  <noscript><p class="schermata">Per usare GraphXDico — demo serve JavaScript.</p></noscript>
-</body>
-</html>
+<header><a class="brand" href="/">Mario <span>demo</span></a><span class="header-note">Ricevitore GraphXDico</span></header>
+<main>
+<section class="intro"><h1>Dal disegno al documento.</h1><p>Apri GraphXDico, prepara lo schema ed esportalo. Qui compariranno l’immagine e le tabelle ricevute.</p></section>
+<section class="connection" aria-label="Collegamento">
+<div><p class="field-label">Editor collegato</p><a id="editor-link" href="https://graphxdico.it/" target="_blank" rel="noreferrer">https://graphxdico.it/</a></div>
+<button id="open" disabled>Apri GraphXDico</button>
+</section>
+<div class="status" id="status" role="status" aria-live="polite">Preparazione del collegamento…</div>
+<p id="session-note" class="muted">Questa pagina simula Mario. Usa solo dati dimostrativi: le sessioni scadono dopo 30 minuti.</p>
+<section id="received" hidden aria-label="Risultato ricevuto">
+<div class="result-heading"><h2>Risultato ricevuto</h2><button id="download" class="secondary">Scarica JSON</button></div>
+<p class="muted">Immagine e dati arrivati da GraphXDico. Questa demo non modifica documenti nel Mario originale.</p>
+<div class="results"><section><h3>Disegno</h3><div id="images"></div></section><section><h3>Tabelle</h3><div id="tables"></div></section></div>
+</section>
+<section id="rejected" class="rejection" hidden><h2>Formato da verificare</h2><p id="rejection-message"></p><p>Il risultato non è stato accettato. Puoi leggere il JSON qui sotto e concordare la correzione.</p></section>
+<details id="json-panel" hidden><summary>Mostra il JSON ricevuto</summary><pre id="json"></pre></details>
+<details id="request-panel" hidden><summary>Mostra la richiesta inviata a GraphXDico</summary><pre id="request"></pre></details>
+<footer>La finestra di GraphXDico si chiude dopo l’invio riuscito. Chiuderla con la X non esporta i dati.</footer>
+</main>
+</body></html>

@@ -1,0 +1,202 @@
+{
+    "protocol": "mario.grafxdico",
+    "version": 1,
+    "session_id": "gds_esempio0000000000000000000",
+    "request_id": "req_esempio00000000000000000",
+    "document_revision": "revisione_opaca_ricevuta_da_mario",
+    "expires_at": "2026-11-12T15:30:00+00:00",
+    "limits": {
+        "max_images": 20,
+        "image_bytes": 10485760,
+        "image_megapixels": 25,
+        "max_rows": 5000,
+        "media_types": [
+            "image/png",
+            "image/jpeg"
+        ]
+    },
+    "group": {
+        "group_id": "grp_esempio0000000000",
+        "label": "Schema delle opere realizzate (E4)",
+        "required_target_ids": [
+            "tgt_esempio_disegno",
+            "tgt_esempio_f1_norme",
+            "tgt_esempio_f1_altri",
+            "tgt_esempio_f2_installati",
+            "tgt_esempio_f2_installabili"
+        ],
+        "complete_result_required": true
+    },
+    "targets": [
+        {
+            "target_id": "tgt_esempio_disegno",
+            "kind": "image",
+            "schema_id": "e4.drawing",
+            "schema_version": 1,
+            "label": "Schema delle opere realizzate (E4)",
+            "width": 632,
+            "height": 788,
+            "required": true
+        },
+        {
+            "target_id": "tgt_esempio_f1_norme",
+            "kind": "table",
+            "schema_id": "f1.regulated_materials",
+            "schema_version": 1,
+            "label": "Materiali e componenti soggetti a norme",
+            "columns": [
+                {
+                    "key": "reference",
+                    "label": "Rif.",
+                    "type": "text"
+                },
+                {
+                    "key": "material_type",
+                    "label": "Tipologia materiale",
+                    "type": "text"
+                },
+                {
+                    "key": "characteristics",
+                    "label": "Caratteristiche (Costruttore, modello, diametro, potenza, tensione, ecc.)",
+                    "type": "text"
+                },
+                {
+                    "key": "quantity_display",
+                    "label": "Qtà /m",
+                    "type": "text"
+                },
+                {
+                    "key": "installation_location",
+                    "label": "Luogo di installazione",
+                    "type": "text"
+                },
+                {
+                    "key": "certifications",
+                    "label": "Attestati/Marchi Certificati prova",
+                    "type": "text"
+                }
+            ],
+            "required": true
+        },
+        {
+            "target_id": "tgt_esempio_f1_altri",
+            "kind": "table",
+            "schema_id": "f1.unregulated_materials",
+            "schema_version": 1,
+            "label": "Materiali e componenti non soggetti a norme",
+            "columns": [
+                {
+                    "key": "reference",
+                    "label": "Rif.",
+                    "type": "text"
+                },
+                {
+                    "key": "material_type",
+                    "label": "Tipologia materiale",
+                    "type": "text"
+                },
+                {
+                    "key": "characteristics",
+                    "label": "Caratteristiche (Costruttore, modello, diametro, potenza, tensione, ecc.)",
+                    "type": "text"
+                },
+                {
+                    "key": "quantity_display",
+                    "label": "Qtà /m",
+                    "type": "text"
+                },
+                {
+                    "key": "installation_location",
+                    "label": "Luogo di installazione",
+                    "type": "text"
+                },
+                {
+                    "key": "certifications",
+                    "label": "Attestati/Marchi Certificati prova",
+                    "type": "text"
+                }
+            ],
+            "required": true
+        },
+        {
+            "target_id": "tgt_esempio_f2_installati",
+            "kind": "table",
+            "schema_id": "f2.installed_equipment",
+            "schema_version": 1,
+            "label": "Apparecchi installati",
+            "columns": [
+                {
+                    "key": "reference",
+                    "label": "Rif.",
+                    "type": "text"
+                },
+                {
+                    "key": "equipment_type",
+                    "label": "Tipologia apparecchio",
+                    "type": "text"
+                },
+                {
+                    "key": "characteristics",
+                    "label": "Caratteristiche (Costruttore, modello, potenza, tensione, gas, rendimento, ecc.)",
+                    "type": "text"
+                },
+                {
+                    "key": "quantity_display",
+                    "label": "Qtà /m",
+                    "type": "text"
+                },
+                {
+                    "key": "installation_location",
+                    "label": "Luogo di installazione",
+                    "type": "text"
+                },
+                {
+                    "key": "certifications",
+                    "label": "Attestati/Marchi Certificati prova",
+                    "type": "text"
+                }
+            ],
+            "required": true
+        },
+        {
+            "target_id": "tgt_esempio_f2_installabili",
+            "kind": "table",
+            "schema_id": "f2.installable_equipment",
+            "schema_version": 1,
+            "label": "Apparecchi installabili",
+            "columns": [
+                {
+                    "key": "reference",
+                    "label": "Rif.",
+                    "type": "text"
+                },
+                {
+                    "key": "equipment_type",
+                    "label": "Tipologia apparecchio",
+                    "type": "text"
+                },
+                {
+                    "key": "characteristics",
+                    "label": "Caratteristiche (Costruttore, modello, potenza, tensione, gas, rendimento, ecc.)",
+                    "type": "text"
+                },
+                {
+                    "key": "quantity_display",
+                    "label": "Qtà /m",
+                    "type": "text"
+                },
+                {
+                    "key": "installation_location",
+                    "label": "Luogo di installazione",
+                    "type": "text"
+                },
+                {
+                    "key": "certifications",
+                    "label": "Attestati/Marchi Certificati prova",
+                    "type": "text"
+                }
+            ],
+            "required": true
+        }
+    ]
+}

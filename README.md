@@ -1,34 +1,47 @@
-# GraphXDico — demo per Mario
+# Mario demo — ricevitore GraphXDico
 
-Editor dimostrativo statico: Mario apre una finestra, la demo restituisce insieme un disegno PNG/JPEG e le tabelle richieste. Mario mostra l'anteprima e applica i dati solo dopo la conferma dell'utente.
+Questo sito **simula Mario**, non GraphXDico.
 
-## Pubblicazione con Coolify
+- Ricevitore: **https://mario.meralab.it**
+- Editor esterno: **https://graphxdico.it/**
 
-1. Collega questo repository e il branch `main`.
-2. Scegli il build pack **Dockerfile**, directory base `/`, file `/Dockerfile` e porta interna **80**.
-3. Assegna un dominio **HTTPS** con certificato valido e avvia il deploy.
-4. `/healthz` deve rispondere `ok`. La pagina dell'editor è `/index.html`.
+L'utente apre GraphXDico dal pulsante della demo. L'editor legge la richiesta e restituisce immagine PNG/JPEG e tabelle JSON. La demo mostra i dati ricevuti, il JSON originale e gli eventuali errori. Non richiede il Mario locale e non accede ai suoi database.
 
-Non servono Node, PHP, database o comandi di build aggiuntivi. Il Dockerfile usa Nginx e include soltanto `public/`. Per il deploy automatico sui nuovi commit occorre configurare in Coolify l'integrazione GitHub/webhook e abilitare Auto Deploy.
+## Coolify
 
-## Configurazione obbligatoria
+Collega il repository, branch `main`, build pack **Dockerfile**, directory base `/`, file `/Dockerfile`, porta interna **80**. Assegna `https://mario.meralab.it` e fai **Redeploy/Rebuild**: rispetto alla prima versione il container usa ora PHP/Apache, non il vecchio sito Nginx statico. Il file Dockerfile include tutto. Nessun comando npm o database richiesto.
 
-Prima del collegamento, sostituisci entrambe le occorrenze di `https://mario.example.invalid` in `public/config/graphxdico.config.json` con l'origine esatta del **Client Mario** (protocollo, dominio ed eventuale porta, senza percorso e senza barra finale). Non è l'indirizzo di Central né della demo. Il file è pubblico: non inserirvi segreti.
-
-Ogni modifica del file richiede commit e nuovo deploy dell'immagine.
-
-Nel `.env` del Client Mario configura:
+Variabili runtime già preimpostate, modificabili in Coolify:
 
 ```dotenv
-GRAFXDICO_URL=https://DOMINIO-DELLA-DEMO/index.html
-GRAFXDICO_ALLOWED_ORIGINS=https://DOMINIO-DELLA-DEMO
-GRAFXDICO_FIXTURE=false
+PUBLIC_ORIGIN=https://mario.meralab.it
+GRAPHXDICO_URL=https://graphxdico.it/
+DEMO_DATA_DIR=/var/lib/mario-demo
 ```
 
-Usa l'origine esatta, mai `*`. La demo aperta senza sessione invita ad aprirla da Mario: è previsto. Il collegamento dal sito pubblico verso un Mario locale richiede una prova reale dei permessi di rete del browser; non disabilitarne le protezioni.
+Se l'editor reale è su una sottopagina, cambia `GRAPHXDICO_URL` con l'indirizzo preciso. `PUBLIC_ORIGIN` non ha barra finale. Il CORS autorizza soltanto l'origine dell'editor configurato. Nessun wildcard. Mantieni HTTPS e non aggiungere header che separino `window.opener` senza verificarne l'effetto.
 
-## Uso
+`/healthz` risponde con JSON `status: ok`. `/demo/config` espone soltanto gli indirizzi pubblici, non segreti. Aprendo la home deve apparire **Mario demo / Ricevitore GraphXDico**, non l'editor di disegno della versione precedente.
 
-Dal documento Mario apri GraphXDico, prepara disegno e righe, quindi premi **Esporta verso Mario**. Dopo la ricezione la finestra si chiude; in Mario verifica l'anteprima e premi **Applica**. La X senza esportazione non invia dati. Le colonne accettate arrivano dalla richiesta di Mario; i valori sono prodotti dall'editor. Non sono supportate automaticamente colonne aggiuntive.
+Le sessioni durano 30 minuti, sono isolate da token e conservate fuori dalla cartella pubblica. Non serve un volume permanente: il redeploy può eliminare le sessioni di prova. Limiti di capienza e frequenza impediscono accumulo indefinito; i file scaduti vengono eliminati alle richieste successive. Usa esclusivamente dati dimostrativi. Non è un archivio né un servizio di produzione.
 
-La cartella `public/vendor/` contiene l'adapter del protocollo `mario.grafxdico` versione 1. Il token temporaneo resta in memoria, non deve essere registrato o salvato. Questa demo non è il vero servizio GraphXDico.
+## Protocollo dell'editor
+
+L'apertura aggiunge `?session=ID#token=TOKEN`. L'editor configura la propria origine Mario come `https://mario.meralab.it` e usa l'adapter consegnato in `integration/`.
+
+- `GET /grafxdico/sessions/{id}/request`
+- `POST /grafxdico/sessions/{id}/result` — multipart `manifest` JSON + `assets[id]`
+- `POST /grafxdico/sessions/{id}/cancel`
+
+Autenticazione `Authorization: Bearer TOKEN`; niente cookie Mario. Richiesta e risposta usano `mario.grafxdico`, versione 1. Il risultato completo viene confermato con 201/staged; il retry identico con 200/replayed. Dopo il successo l'editor invia `GRAFXDICO_DONE` via postMessage all'origine esatta e chiude. La demo interroga anche il server. La X non esporta.
+
+Questa versione prova il percorso **multipart** dell'adapter, non l'import alternativo ZIP. Non replica i permessi, lock, revisioni storiche, stampa PDF e applicazione ai documenti del Mario completo. Verifica identità della richiesta, gruppo completo, tipi di colonna, file, MIME, dimensioni e SHA256. Il superamento di questo ricevitore dimostra lo scambio; non certifica tutte le validazioni del prodotto completo.
+
+I valori delle tabelle sono prodotti da GraphXDico; per ora le colonne sono quelle nella richiesta. Un JSON con colonne diverse resta visibile come risultato rifiutato, per concordare l'adattamento: non viene dichiarato compatibile automaticamente.
+
+## Controlli
+
+- `PHP_BINARY=/percorso/php python tests/receiver.py`: API, token, origini, gruppo, PNG, retry, annullamento, scadenza. JPEG incluso quando è disponibile la fixture del contratto.
+- `PHP_BINARY=/percorso/php CHROME_PATH=/percorso/chrome node tests/browser.mjs`: browser con editor esterno di prova, PNG/JPEG, tabelle, JSON, annullamento, desktop/mobile. Non contatta il vero GraphXDico.
+
+PHP 8.4 e Chrome; nessuna libreria installata via npm. Gli artefatti temporanei sono in `.runtime/`, esclusa da Git. Il Dockerfile va costruito e verificato nell'ambiente di deploy.
