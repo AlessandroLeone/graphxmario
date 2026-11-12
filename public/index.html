@@ -12,7 +12,7 @@
 <main>
 <section class="intro"><h1>Dal disegno al documento.</h1><p>Apri GraphXDico, prepara lo schema ed esportalo. Qui compariranno l’immagine e le tabelle ricevute.</p></section>
 <section class="connection" aria-label="Collegamento">
-<div><p class="field-label">Editor collegato</p><a id="editor-link" href="https://graphxdico.it/" target="_blank" rel="noreferrer">https://graphxdico.it/</a></div>
+<div class="editor-field"><label class="field-label" for="editor-url">Indirizzo di GraphXDico</label><input id="editor-url" type="url" required maxlength="2048" placeholder="https://graphxdico.it/editor" autocomplete="url" spellcheck="false" aria-describedby="editor-help"><p id="editor-help" class="muted">Incolla l’URL completo dell’editor. Verrà ricordato in questo browser e usato per la prossima prova.</p></div>
 <button id="open" disabled>Apri GraphXDico</button>
 </section>
 <div class="status" id="status" role="status" aria-live="polite">Preparazione del collegamento…</div>

@@ -43,11 +43,13 @@ try{
  const {targetId}=await cdp('Target.createTarget',{url:origin});const page=await attach(targetId);
  await cdp('Emulation.setDeviceMetricsOverride',{width:1280,height:1000,deviceScaleFactor:1,mobile:false},page);
  await until(()=>evaluate(page,()=>document.querySelector('#open')?.disabled===false));
+ await evaluate(page,url=>{document.querySelector('#editor-url').value=url;},editor+'/custom-editor?mode=mario');
  for(const format of ['image/png','image/jpeg']){
   await evaluate(page,()=>document.querySelector('#open').click());
   let pop;
   await until(async()=>{const t=await cdp('Target.getTargets');pop=t.targetInfos.find(t=>t.type==='page'&&t.url.startsWith(editor));return !!pop;});
   const popup=await attach(pop.targetId);
+  assert(pop.url.startsWith(editor+'/custom-editor?mode=mario&session='),'textbox URL used for popup');
   await until(()=>evaluate(popup,()=>window.ready===true));
   await evaluate(popup,f=>{window.format=f;document.querySelector('#export').click();},format);
   await until(()=>evaluate(page,()=>!document.querySelector('#received').hidden));
@@ -67,6 +69,9 @@ try{
  await evaluate(popup,()=>document.querySelector('#cancel').click());
  await until(()=>evaluate(page,()=>document.querySelector('#status').textContent.includes('annullata')));
  assert(await evaluate(page,()=>document.querySelector('#received').hidden),'cancel leaves no received result');
+ await cdp('Page.reload',{},page);
+ await until(()=>evaluate(page,()=>document.querySelector('#open')?.disabled===false));
+ assert(await evaluate(page,url=>document.querySelector('#editor-url').value===url,editor+'/custom-editor?mode=mario'),'editor URL remembered after reload');
  writeFileSync(resolve(out,'result.json'),JSON.stringify({checks,external:'test double, not real GraphXDico'},null,2));
  console.log('PASS',checks.length,'browser checks. Screenshots:',out);
 } finally {

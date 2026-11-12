@@ -8,11 +8,13 @@ passed=[]
 def check(ok, name):
     assert ok, name
     passed.append(name)
-def call(path, method='GET', token=None, origin=None, manifest=None, files=None):
+def call(path, method='GET', token=None, origin=None, manifest=None, files=None, json_body=None):
     headers={}
     if token: headers['Authorization']='Bearer '+token
     if origin: headers['Origin']=origin
     body=None
+    if json_body is not None:
+        body=json.dumps(json_body).encode();headers['Content-Type']='application/json'
     if manifest is not None:
         boundary='----demo'+uuid.uuid4().hex
         chunks=[]
@@ -92,6 +94,18 @@ with tempfile.TemporaryDirectory(prefix='receiver-', dir=ROOT/'.runtime') as dat
         if (ROOT.parent/'esempi-contratto-attuale/assets/drawing-1.jpg').exists():
             s,t=create();m,f=payload(s,'image/jpeg')
             check(call('/grafxdico/sessions/'+s['session_id']+'/result','POST',t,EDITOR,m,f)[0]==201,'JPEG accepted')
+        custom='https://other-editor.example.test'
+        code,s,_=call('/demo/sessions','POST',origin=BASE,json_body={'editor_url':custom+'/editor?mode=mario'})
+        check(code==201 and s['editor_url'].startswith(custom+'/editor?mode=mario&session='),'custom URL preserves path/query')
+        t=s['editor_url'].split('#token=')[1];path='/grafxdico/sessions/'+s['session_id']
+        check(call(path+'/request',token=t,origin=EDITOR)[0]==403,'old editor cannot access custom session')
+        code,_,headers=call(path+'/result','OPTIONS',origin=custom)
+        check(code==204 and headers['Access-Control-Allow-Origin']==custom,'custom editor CORS')
+        check(call(path+'/request',token=t,origin=custom)[0]==200,'custom editor token works')
+        m,f=payload(s)
+        check(call(path+'/result','POST',t,custom,m,f)[0]==201,'custom editor image and tables accepted')
+        for invalid in ['javascript:alert(1)','https://user:pass@example.test/','https://example.test/#fragment','https://example.test/?session=old']:
+            check(call('/demo/sessions','POST',origin=BASE,json_body={'editor_url':invalid})[0]==422,'invalid editor URL rejected')
         print('PASS',len(passed),'checks:',', '.join(passed))
     finally:
         proc.terminate();proc.wait(timeout=10)

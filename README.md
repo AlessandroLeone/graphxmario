@@ -45,3 +45,7 @@ I valori delle tabelle sono prodotti da GraphXDico; per ora le colonne sono quel
 - `PHP_BINARY=/percorso/php CHROME_PATH=/percorso/chrome node tests/browser.mjs`: browser con editor esterno di prova, PNG/JPEG, tabelle, JSON, annullamento, desktop/mobile. Non contatta il vero GraphXDico.
 
 PHP 8.4 e Chrome; nessuna libreria installata via npm. Gli artefatti temporanei sono in `.runtime/`, esclusa da Git. Il Dockerfile va costruito e verificato nell'ambiente di deploy.
+
+## URL editor modificabile
+
+La pagina contiene il campo Indirizzo di GraphXDico: inserire l’URL completo e avviare una nuova prova. L’ultimo URL usato resta nel solo browser (localStorage), non cambia altri utenti. GRAPHXDICO_URL è solo il valore iniziale. La sessione fissa l’origine CORS del destinatario selezionato; i token restano obbligatori. Nessuna richiesta dal server all’URL scelto. In HTTPS usare un editor HTTPS. Indicare l’URL finale, senza credenziali, frammenti # o parametri session/token. Le sottopagine e gli altri parametri query sono conservati.

@@ -55,12 +55,21 @@ async function poll() {
   finally { polling=false; }
 }
 $('open').addEventListener('click',async()=>{
+  if(!$('editor-url').reportValidity()) return;
+  let editorUrl;
+  try {
+    const url=new URL($('editor-url').value.trim());
+    if(!['https:','http:'].includes(url.protocol) || url.username || url.password || url.hash || url.searchParams.has('session') || url.searchParams.has('token')) throw new Error('Usa l’URL dell’editor senza credenziali, #, session o token.');
+    if(location.protocol==='https:' && url.protocol!=='https:') throw new Error('Dalla demo HTTPS serve un indirizzo editor HTTPS.');
+    editorUrl=url.href;
+  } catch(e) {status(e.message || 'Indirizzo non valido.','error');$('editor-url').focus();return;}
   if(session && !received && popup && !popup.closed && !confirm('C’è già una finestra GraphXDico aperta. Avviare una nuova prova?')) {popup.focus();return;}
   const next=window.open('','GraphXDico','width=1200,height=850');
   if(!next) {status('Il browser ha bloccato la finestra. Consenti i popup per questo sito e riprova.','error');return;}
   $('open').disabled=true;clearInterval(timer);
   try {
-    const created=await api('/demo/sessions',{method:'POST'});
+    const created=await api('/demo/sessions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({editor_url:editorUrl})});
+    try {localStorage.setItem('mario-demo-editor-url',editorUrl);} catch {}
     session=created;popup=next;received=null;lastStamp='';closedNotice=false;
     $('received').hidden=true;$('rejected').hidden=true;$('json-panel').hidden=true;
     $('request-panel').hidden=false;$('request').textContent=JSON.stringify(created.request,null,2);
@@ -73,7 +82,7 @@ $('open').addEventListener('click',async()=>{
   finally {$('open').disabled=false;}
 });
 window.addEventListener('message',e=>{
-  if(e.origin!==config?.editorOrigin || e.source!==popup || e.data?.session_id!==session?.session_id) return;
+  if(e.origin!==session?.editor_origin || e.source!==popup || e.data?.session_id!==session?.session_id) return;
   if(['GRAFXDICO_DONE','GRAFXDICO_CANCELLED'].includes(e.data?.type)) poll();
 });
 $('download').addEventListener('click',()=>{
@@ -83,6 +92,7 @@ $('download').addEventListener('click',()=>{
 });
 try {
   config=await api('/demo/config');
-  $('editor-link').textContent=config.editorUrl;$('editor-link').href=config.editorUrl;
+  let saved;try {saved=localStorage.getItem('mario-demo-editor-url');} catch {}
+  $('editor-url').value=saved || config.editorUrl;
   $('open').disabled=false;status('Pronto. Il pulsante apre il vero GraphXDico e prepara la ricezione del risultato.');
 } catch(e) {status(`Impossibile preparare il collegamento: ${e.message}`,'error');}

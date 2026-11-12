@@ -1,12 +1,12 @@
 COLLEGARE GRAPHXDICO AL SIMULATORE MARIO
 
 Pagina che simula Mario: https://mario.meralab.it/
-Pagina del vero GraphXDico: https://graphxdico.it/
+Pagina del vero GraphXDico: https://graphxdico.it/ (sostituisci con l’URL preciso del tuo editor)
 Origine Mario da configurare in GraphXDico: https://mario.meralab.it
 
 Il tuo editor esiste già: aggiungi il collegamento a questo ricevitore online, senza dipendere da un Mario installato sul PC.
 
-L'utente apre mario.meralab.it e clicca «Apri GraphXDico». Si apre la tua pagina con ?session=ID#token=TOKEN. Il simulatore resta in attesa. Se il tuo editor usa un percorso diverso dalla home, comunicaci l'URL preciso.
+L'utente apre mario.meralab.it e clicca «Apri GraphXDico». Si apre la tua pagina con ?session=ID#token=TOKEN. Il simulatore resta in attesa. Nella demo l’URL del tuo editor si può cambiare nel campo «Indirizzo di GraphXDico», senza modificare file o rifare deploy. Comunica l’URL HTTPS esatto, inclusa l’eventuale sottopagina; deve essere l’origine finale, senza redirect verso un altro dominio.
 
 Usa il file allegato grafxdico-mario-client.mjs: gestisce richiesta, invio e conferma. Configuralo con:
   marioOrigin: 'https://mario.meralab.it'

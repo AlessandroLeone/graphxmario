@@ -21,6 +21,20 @@ function requireThat(bool $condition, string $code, string $message): void {
 function bearer(): string {
     return preg_replace('/^Bearer /', '', $_SERVER['HTTP_AUTHORIZATION'] ?? '') ?? '';
 }
+function editorAddress(mixed $value, string $publicOrigin): array {
+    if (!is_string($value) || strlen($value)>2048) fail(422,'editor_url','Inserisci un indirizzo completo per GraphXDico.');
+    $value=trim($value); $p=parse_url($value);
+    if (!filter_var($value,FILTER_VALIDATE_URL) || !is_array($p) || !in_array($p['scheme']??'', ['https','http'],true)
+        || isset($p['user']) || isset($p['pass']) || isset($p['fragment'])) {
+        fail(422,'editor_url','Usa un URL http/https senza credenziali o frammento #.');
+    }
+    if (str_starts_with($publicOrigin,'https://') && $p['scheme']!=='https') fail(422,'editor_url','Dalla demo HTTPS serve un editor HTTPS per ricevere i dati.');
+    parse_str($p['query']??'', $query);
+    if (isset($query['session']) || isset($query['token'])) fail(422,'editor_url','Inserisci l’indirizzo dell’editor senza session o token.');
+    $port=$p['port']??null;
+    $origin=$p['scheme'].'://'.strtolower($p['host']).(($port && !(($p['scheme']==='https' && $port===443)||($p['scheme']==='http' && $port===80)))?':'.$port:'');
+    return [$value,$origin];
+}
 function saveRecord($handle, array $record): void {
     $bytes=json_encode($record, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR);
     rewind($handle); ftruncate($handle, 0); fwrite($handle, $bytes); fflush($handle);
@@ -100,15 +114,7 @@ try {
     $publicOrigin=rtrim(getenv('PUBLIC_ORIGIN') ?: 'https://mario.meralab.it','/');
     $origin=$_SERVER['HTTP_ORIGIN']??'';
     $editorRoute=str_starts_with($path,'/grafxdico/');
-    if ($editorRoute) {
-        if ($origin!=='' && $origin!==$editorOrigin) fail(403,'origin_not_allowed','Origine editor non autorizzata.');
-        if ($origin!=='') header('Access-Control-Allow-Origin: '.$origin);
-        header('Vary: Origin');
-        header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-        header('Access-Control-Allow-Headers: Authorization, Content-Type, X-Requested-With');
-        header('Access-Control-Max-Age: 600');
-        if ($method==='OPTIONS') { http_response_code(204); exit; }
-    } elseif ($method==='POST' && $origin!==$publicOrigin) {
+    if (!$editorRoute && $method==='POST' && $origin!==$publicOrigin) {
         fail(403,'origin_not_allowed','Aprire la demo dalla propria origine configurata.');
     }
     if ($path==='/healthz') reply(200,['status'=>'ok','role'=>'mario-receiver']);
@@ -123,6 +129,12 @@ try {
         $count++; $bytes+=filesize($file);
     }
     if ($path==='/demo/sessions' && $method==='POST') {
+        if ((int)($_SERVER['CONTENT_LENGTH']??0)>4096) fail(413,'request_large','Indirizzo troppo lungo.');
+        $body=file_get_contents('php://input');
+        try { $input=$body===''?[]:json_decode($body,true,16,JSON_THROW_ON_ERROR); }
+        catch (JsonException $e) { fail(422,'editor_url','Richiesta non valida.'); }
+        if (!is_array($input)) fail(422,'editor_url','Richiesta non valida.');
+        [$editorUrl,$editorOrigin]=editorAddress($input['editor_url']??$editorUrl,$publicOrigin);
         if ($count>=64 || $bytes>134217728) fail(429,'demo_capacity','La demo è piena. Attendi la scadenza delle sessioni.');
         $rate=json_decode(stream_get_contents($global) ?: '{}',true)?:[];
         $ip=hash('sha256',$_SERVER['REMOTE_ADDR']??''); $now=time();
@@ -137,10 +149,10 @@ try {
         foreach ($request['targets'] as &$target) { $old=$target['target_id']; $target['target_id']='tgt_'.bin2hex(random_bytes(12)); $map[$old]=$target['target_id']; } unset($target);
         $request['group']['group_id']='grp_'.bin2hex(random_bytes(12));
         $request['group']['required_target_ids']=array_values($map);
-        $record=['token_hash'=>hash('sha256',$token),'viewer_hash'=>hash('sha256',$viewer),'expires'=>$now+TTL,'request'=>$request,'status'=>'open','received'=>null,'last_rejection'=>null];
+        $record=['editor_origin'=>$editorOrigin,'token_hash'=>hash('sha256',$token),'viewer_hash'=>hash('sha256',$viewer),'expires'=>$now+TTL,'request'=>$request,'status'=>'open','received'=>null,'last_rejection'=>null];
         file_put_contents($dir.'/'.$id.'.json',json_encode($record,JSON_THROW_ON_ERROR),LOCK_EX);
         flock($global,LOCK_UN); fclose($global);
-        reply(201,['session_id'=>$id,'viewer_token'=>$viewer,'request'=>$request,'editor_url'=>$editorUrl.(str_contains($editorUrl,'?')?'&':'?').'session='.$id.'#token='.$token]);
+        reply(201,['session_id'=>$id,'viewer_token'=>$viewer,'request'=>$request,'editor_origin'=>$editorOrigin,'editor_url'=>$editorUrl.(str_contains($editorUrl,'?')?'&':'?').'session='.$id.'#token='.$token]);
     }
     flock($global,LOCK_UN); fclose($global);
     if (!preg_match('~^/(grafxdico|demo)/sessions/(gds_[a-f0-9]{32})(?:/(request|result|cancel|status))?$~D',$path,$matches)) fail(404,'not_found','Percorso inesistente.');
@@ -149,6 +161,15 @@ try {
     if (!is_file($file)) fail(401,'unauthorized','Sessione non valida.');
     $handle=fopen($file,'r+'); flock($handle,LOCK_EX);
     $record=json_decode(stream_get_contents($handle),true,512,JSON_THROW_ON_ERROR);
+    if ($area==='grafxdico') {
+        if ($origin!=='' && $origin!==($record['editor_origin']??$editorOrigin)) fail(403,'origin_not_allowed','Origine editor non autorizzata per questa sessione.');
+        if ($origin!=='') header('Access-Control-Allow-Origin: '.$origin);
+        header('Vary: Origin');
+        header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+        header('Access-Control-Allow-Headers: Authorization, Content-Type, X-Requested-With');
+        header('Access-Control-Max-Age: 600');
+        if ($method==='OPTIONS') { http_response_code(204); exit; }
+    }
     $hash=$area==='demo'?'viewer_hash':'token_hash';
     if (!hash_equals($record[$hash],hash('sha256',bearer()))) fail(401,'unauthorized','Sessione non valida.');
     if ($record['expires']<time()) fail(410,'session_expired','Sessione scaduta. Riapri GraphXDico.');
